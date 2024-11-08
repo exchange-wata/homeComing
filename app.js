@@ -3,6 +3,8 @@ require('dotenv').config()
 const line = require('@line/bot-sdk');
 const express = require('express');
 
+const FRIDAY = 5
+
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
@@ -42,21 +44,35 @@ async function handleMessageEvent(event, userId) {
   if (event.message.text === '帰ります') {
     resetUserState(userId)
 
-    return client.replyMessage({
-      replyToken: event.replyToken,
-      messages: [{
-        type: 'template',
-        altText: 'お弁当が必要ですか？',
-        template: {
-          type: 'confirm',
-          text: 'お弁当が必要ですか？',
-          actions: [
-            { label: 'はい', type: 'postback', data: 'needed=true' },
-            { label: 'いいえ', type: 'postback', data: 'needed=false' },
-          ],
-        },
-      }]
-    });
+    const today = new Date();
+    const day = today.getDay();
+    if (day === FRIDAY) {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: 'text',
+            text: '一週間お疲れ様でした！',
+          }
+        ]
+      });
+    } else {
+      return client.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'template',
+          altText: 'お弁当が必要ですか？',
+          template: {
+            type: 'confirm',
+            text: 'お弁当が必要ですか？',
+            actions: [
+              { label: 'はい', type: 'postback', data: 'needed=true' },
+              { label: 'いいえ', type: 'postback', data: 'needed=false' },
+            ],
+          },
+        }]
+      });
+    }
   }
 
   return Promise.resolve(null);
