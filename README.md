@@ -22,19 +22,31 @@ npm run start
 ## インフラ構成
 
 ```mermaid
-flowchart TD
-    User[LINEユーザー] -->|「帰ります」等送信| LINE[LINE Platform]
-    LINE -->|Webhook| APIGW["API Gateway (stage: work)<br/>Throttling: 10 req/s, burst 20"]
-    APIGW --> Lambda["Lambda: lineBotHomeComing<br/>Node.js Runtime"]
-    Lambda -->|返信メッセージ| LINE
-    LINE -->|通知表示| User
+flowchart LR
+    LINEUser["LINEユーザー"]
+    LINE["LINE Platform"]
+    Owner["管理者<br/>(メール通知先)"]
 
-    Lambda -.->|Invocationsメトリクス| CWAlarm["CloudWatch Alarm<br/>5分間で20回超を検知"]
-    CWAlarm -->|アラーム発報| SNS[SNS Topic]
-    SNS -->|メール通知| Owner[管理者]
+    subgraph AWS["AWS Cloud"]
+        direction TB
+        APIGW["API Gateway<br/>stage: work<br/>Throttling: 10 req/s, burst 20"]
+        Lambda["Lambda<br/>lineBotHomeComing<br/>Node.js Runtime"]
+        CWAlarm["CloudWatch Alarm<br/>Invocations監視"]
+        SNS["SNS Topic"]
+        CostAD["Cost Anomaly Detection<br/>閾値 $1"]
 
-    Account[AWSアカウント全体の支出] -.->|ML異常検知| CostAnomaly["Cost Anomaly Detection<br/>閾値 $1"]
-    CostAnomaly -->|メール通知| Owner
+        APIGW --- Lambda
+        Lambda --- CWAlarm
+        CWAlarm --- SNS
+    end
+
+    LINEUser --- LINE
+    LINE --- APIGW
+    SNS --- Owner
+    CostAD --- Owner
+
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E;
+    class APIGW,Lambda,CWAlarm,SNS,CostAD aws
 ```
 
 想定外の大量呼び出しやコスト異常を検知するため、API Gatewayのスロットリングに加え、CloudWatch AlarmとCost Anomaly Detectionによる監視・メール通知を設定しています。
