@@ -20,7 +20,24 @@ npm run start
 父が仕事からの帰宅時に、帰宅の旨と次の日のお弁当の有無を連絡してくるため、その連絡を自動化してみようと思った。
 
 ## インフラ構成
-coming soon....
+
+```mermaid
+flowchart TD
+    User[LINEユーザー] -->|「帰ります」等送信| LINE[LINE Platform]
+    LINE -->|Webhook| APIGW["API Gateway (stage: work)<br/>Throttling: 10 req/s, burst 20"]
+    APIGW --> Lambda["Lambda: lineBotHomeComing<br/>Node.js Runtime"]
+    Lambda -->|返信メッセージ| LINE
+    LINE -->|通知表示| User
+
+    Lambda -.->|Invocationsメトリクス| CWAlarm["CloudWatch Alarm<br/>5分間で20回超を検知"]
+    CWAlarm -->|アラーム発報| SNS[SNS Topic]
+    SNS -->|メール通知| Owner[管理者]
+
+    Account[AWSアカウント全体の支出] -.->|ML異常検知| CostAnomaly["Cost Anomaly Detection<br/>閾値 $1"]
+    CostAnomaly -->|メール通知| Owner
+```
+
+想定外の大量呼び出しやコスト異常を検知するため、API Gatewayのスロットリングに加え、CloudWatch AlarmとCost Anomaly Detectionによる監視・メール通知を設定しています。
 
 ## 実行内容
 ・月〜木パターン
